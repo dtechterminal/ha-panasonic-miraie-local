@@ -8,3 +8,16 @@ __pycache__/
 *.pem
 *.key
 *.log
+
+# Private deployment notes, captures, backups and Home Assistant storage.
+/HANDOFF.md
+/evidence/
+/backups/
+.storage/
+.ssh/
+.secrets/
+*.pcap
+*.pcapng
+*.p12
+*.pfx
+*.zip
