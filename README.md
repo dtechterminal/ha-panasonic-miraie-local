@@ -1,5 +1,7 @@
 # Panasonic AC Local
 
+<img src="custom_components/ac_mitm/brand/logo@2x.png" alt="Panasonic" width="280">
+
 **Control your Panasonic AC from Home Assistant—even when the AC cannot access the internet.**
 
 No changes to the AC, special certificates, or Matter setup are needed.
@@ -29,6 +31,8 @@ You need:
 6. **Restart Home Assistant.**
 
 You only need to add the repository once. Future updates are available through HACS.
+
+Home Assistant 2026.3 or newer displays the bundled Panasonic logo locally. See [brand image credits](docs/branding.md).
 
 ## 2. Add your AC
 
