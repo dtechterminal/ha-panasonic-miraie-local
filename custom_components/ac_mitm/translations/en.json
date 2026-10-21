@@ -1,0 +1,90 @@
+{
+  "title": "Panasonic AC Local",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Panasonic AC Local",
+        "description": "Native local UDP control for supported Panasonic India MirAIe ACs. Your AC must already be paired with MirAIe.",
+        "menu_options": {
+          "account": "Get local keys using a Panasonic MirAIe account",
+          "manual": "Enter existing local keys (no account needed)",
+          "bridge": "Connect an existing local HTTP bridge (advanced)"
+        }
+      },
+      "account": {
+        "title": "Panasonic MirAIe account",
+        "description": "Sign in once to obtain the device’s local encryption keys. Your password and account tokens are not saved. Runtime control uses your LAN only. Use your MirAIe email or mobile number, including country code if required.",
+        "data": {
+          "username": "Email or mobile number",
+          "password": "Password"
+        }
+      },
+      "device": {
+        "title": "Select an AC",
+        "data": {
+          "device_id": "Panasonic AC"
+        }
+      },
+      "manual": {
+        "title": "Existing local keys",
+        "description": "Use this if you already have the device ID, AES-256 key (64 hexadecimal characters) and IV (32 hexadecimal characters). These secrets are stored in the HA config entry.",
+        "data": {
+          "device_id": "Device ID",
+          "key": "Local AES key",
+          "iv": "Local IV"
+        }
+      },
+      "network": {
+        "title": "AC local network",
+        "description": "Reserve an IP for the AC. Direct UDP requires HA to receive the AC’s VLAN-local broadcasts on UDP 5002. Merely allowing inter-VLAN unicast is insufficient. A Linux gateway receiver is available for separate VLANs. Verification briefly adjusts the target by 1°C, then restores it; power is unchanged.",
+        "data": {
+          "host": "AC IPv4 address",
+          "transport": "Local transport"
+        }
+      },
+      "gateway": {
+        "title": "Linux gateway receiver",
+        "description": "Advanced: gateway needs Python 3, access to the AC VLAN, and root or CAP_NET_RAW. Prepare a dedicated SSH key in HA and a verified known_hosts file. This integration never disables host-key verification or edits gateway firewall rules. Verification briefly changes and restores the temperature.",
+        "data": {
+          "gateway_host": "Gateway SSH host",
+          "gateway_port": "SSH port",
+          "gateway_username": "SSH user",
+          "gateway_key_file": "Private key path inside HA",
+          "gateway_known_hosts": "Known-hosts file path inside HA",
+          "gateway_interface": "Gateway interface on AC VLAN",
+          "gateway_source": "Gateway IPv4 address on AC VLAN"
+        }
+      },
+      "firewall": {
+        "title": "Local control verified — optional cloud isolation",
+        "description": "A local temperature change and restoration succeeded. You can now block this AC’s internet/WAN access on your firewall, for IPv4 and IPv6. Keep Wi-Fi/LAN enabled, DHCP/DNS as needed, UDP 5001 to the AC, and UDP 5002 broadcast replies. Preserve SSH access if using the gateway receiver. Do not pause or disconnect the device. Click Submit after applying the block, or skip the block and finish; local control is tested again before setup completes. This integration does not change firewall rules or verify that WAN is blocked."
+      },
+      "bridge": {
+        "title": "Existing local bridge",
+        "description": "Compatibility mode for an already configured native UDP HTTP bridge. The bridge must report working local UDP control. Account setup and the native write verification are not performed in this compatibility mode.",
+        "data": {
+          "host": "Bridge host",
+          "port": "HTTP port"
+        }
+      },
+      "discover": {
+        "title": "Finding and checking your AC",
+        "description": "Discovering the AC on your LAN, then testing a temperature change and restoration. Power is unchanged. If discovery is blocked by VLAN boundaries, network options will appear automatically."
+      }
+    },
+    "error": {
+      "invalid_auth": "Panasonic rejected the account credentials.",
+      "cannot_connect": "Unable to reach the account service or local bridge.",
+      "no_devices": "No ACs were found in this MirAIe account.",
+      "no_local_key": "This device does not expose a usable local control key.",
+      "invalid_key": "Check the device ID, 64-character key and 32-character IV.",
+      "local_unreachable": "Local read/write verification failed. Check the IP, keys, broadcast path, UDP ports, and gateway SSH settings. Do not block WAN until local verification succeeds."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    },
+    "progress": {
+      "local_setup": "Finding the AC and verifying local control…"
+    }
+  }
+}

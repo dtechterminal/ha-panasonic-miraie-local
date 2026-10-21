@@ -1,0 +1,16 @@
+{
+  "domain": "ac_mitm",
+  "name": "Panasonic AC Local",
+  "codeowners": [
+    "@ankurpandeyvns"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/dtechterminal/ha-panasonic-miraie-local",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/dtechterminal/ha-panasonic-miraie-local/issues",
+  "requirements": [
+    "asyncssh==2.24.1"
+  ],
+  "version": "2.0.0"
+}
