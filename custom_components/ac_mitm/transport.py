@@ -1,104 +1,131 @@
-"""Direct LAN transport and optional Linux gateway broadcast receiver."""
+"""Local UDP with an optional receiver for VLAN frames already reaching HA."""
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import ipaddress
-import json
+import logging
 import socket
 
-import asyncssh
+from .packet import decode_frame, open_receiver, route_interface
+from .protocol import Protocol, ProtocolError, matches
 
-from .protocol import Protocol, ProtocolError
+_LOGGER = logging.getLogger(__name__)
+REPLY_TIMEOUT = 3
+COLLECT_WINDOW = 0.08
 
 
-# Only ciphertext and network addresses are sent to the gateway. Keys stay in HA.
-GATEWAY_SCRIPT = r"""
-import base64, json, select, socket, struct, time
-request = json.loads(__REQUEST_JSON__)
-raw = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(3))
-raw.bind((request['interface'], 0))
-raw.setblocking(False)
-sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sender.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-sender.bind((request['source'], 0))
-sender.sendto(bytes.fromhex(request['packet']), (request['host'], 5001))
-deadline = time.monotonic() + 3
-packets = []
-while time.monotonic() < deadline:
-    ready, _, _ = select.select([raw], [], [], max(0, deadline - time.monotonic()))
-    if not ready:
-        break
-    frame = raw.recv(65535)
-    if len(frame) < 42 or frame[12:14] != b'\x08\x00':
-        continue
-    ip = frame[14:]
-    ihl = (ip[0] & 15) * 4
-    if len(ip) < ihl + 8 or ip[9] != 17 or socket.inet_ntoa(ip[12:16]) != request['host']:
-        continue
-    udp = ip[ihl:]
-    source_port, destination_port, length = struct.unpack('!HHH', udp[:6])
-    if source_port != 5001 or destination_port != 5002 or length < 8 or length > len(udp):
-        continue
-    packets.append(base64.b64encode(udp[8:length]).decode())
-    deadline = min(deadline, time.monotonic() + 0.08)
-print(json.dumps(packets))
-"""
+def local_config(config: dict) -> dict:
+    """Remove obsolete remote-access settings, retaining device credentials."""
+    result = {k: v for k, v in config.items() if not k.startswith("gateway_")}
+    if result.get("transport") in (None, "gateway"):
+        result["transport"] = "auto"
+    return result
 
 
 class UdpTransport:
     def __init__(self, config: dict, direct_lock: asyncio.Lock):
-        self.config = config
+        self.config = local_config(config)
         self.host = str(ipaddress.IPv4Address(config["host"]))
         self.direct_lock = direct_lock
+        self.protocol = Protocol(config["device_id"], config["key"], config["iv"])
+        self.last_receiver = None
+        self._interface = self.config.get("packet_interface") or None
+        self._packet_unavailable = False
 
-    async def exchange(self, packet: bytes) -> list[bytes]:
-        if self.config.get("transport") == "gateway":
-            return await self._gateway(packet)
+    async def _open_packet_socket(self):
+        if self.config["transport"] == "direct" or self._packet_unavailable:
+            return None
+        try:
+            if not self._interface:
+                self._interface = await asyncio.to_thread(route_interface, self.host)
+            if not self._interface:
+                raise OSError("No local interface for the AC route")
+            return open_receiver(self._interface)
+        except OSError:
+            if self.config["transport"] == "packet":
+                raise
+            self._packet_unavailable = True
+            _LOGGER.debug("Local packet receiver unavailable; using standard UDP")
+            return None
+
+    async def exchange(self, packet: bytes, *, expected: dict | None = None) -> list[bytes]:
         async with self.direct_lock:
-            return await self._direct(packet)
+            return await self._local_exchange(packet, expected)
 
-    async def _direct(self, packet: bytes) -> list[bytes]:
+    async def _local_exchange(self, packet: bytes, expected: dict | None) -> list[bytes]:
         loop = asyncio.get_running_loop()
-        replies = []
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.bind(("0.0.0.0", 5002))
-            sock.setblocking(False)
-            await loop.sock_sendto(sock, packet, (self.host, 5001))
-            deadline = loop.time() + 3
-            while loop.time() < deadline:
-                try:
-                    async with asyncio.timeout(deadline - loop.time()):
-                        wire, peer = await loop.sock_recvfrom(sock, 65535)
-                except TimeoutError:
-                    break
-                if peer == (self.host, 5001):
-                    replies.append(wire)
-                    deadline = min(deadline, loop.time() + 0.08)
-        return replies
+        queue = asyncio.Queue(maxsize=32)
+        replies, seen = [], set()
+        raw = None
 
-    async def _gateway(self, packet: bytes) -> list[bytes]:
-        request = {
-            "interface": self.config["gateway_interface"],
-            "source": str(ipaddress.IPv4Address(self.config["gateway_source"])),
-            "host": self.host,
-            "packet": packet.hex(),
-        }
-        script = GATEWAY_SCRIPT.replace("__REQUEST_JSON__", repr(json.dumps(request)))
-        async with asyncio.timeout(12):
-            async with asyncssh.connect(
-                self.config["gateway_host"],
-                port=int(self.config.get("gateway_port", 22)),
-                username=self.config["gateway_username"],
-                client_keys=[self.config["gateway_key_file"]],
-                known_hosts=self.config["gateway_known_hosts"],
-                config=None,
-            ) as connection:
-                result = await connection.run("python3 -", input=script, check=True)
-        return [base64.b64decode(value, validate=True) for value in json.loads(result.stdout)]
+        def accept(wire, receiver):
+            try:
+                state = self.protocol.decode(wire)
+            except (ProtocolError, ValueError):
+                return
+            if wire not in seen and not queue.full():
+                seen.add(wire)
+                queue.put_nowait((wire, receiver, matches(state, expected or {})))
+
+        def read_raw():
+            # Bound work per callback so unrelated LAN traffic cannot monopolize HA.
+            for _ in range(32):
+                try:
+                    frame, ancillary, flags, _ = raw.recvmsg(65535, 128)
+                except BlockingIOError:
+                    return
+                except OSError:
+                    loop.remove_reader(raw.fileno())
+                    return
+                if flags & (socket.MSG_TRUNC | socket.MSG_CTRUNC):
+                    continue
+                wire = decode_frame(frame, ancillary, self.host, self.config.get("vlan_id"))
+                if wire:
+                    accept(wire, "local_packet")
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            try:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                sock.bind(("0.0.0.0", 5002))
+                sock.setblocking(False)
+                raw = await self._open_packet_socket()
+
+                def read_udp():
+                    for _ in range(32):
+                        try:
+                            wire, peer = sock.recvfrom(65535)
+                        except BlockingIOError:
+                            return
+                        except OSError:
+                            loop.remove_reader(sock.fileno())
+                            return
+                        if peer == (self.host, 5001):
+                            accept(wire, "udp")
+
+                loop.add_reader(sock.fileno(), read_udp)
+                if raw is not None:
+                    loop.add_reader(raw.fileno(), read_raw)
+                await loop.sock_sendto(sock, packet, (self.host, 5001))
+                deadline = loop.time() + REPLY_TIMEOUT
+                while loop.time() < deadline:
+                    try:
+                        async with asyncio.timeout(deadline - loop.time()):
+                            wire, receiver, confirmed = await queue.get()
+                    except TimeoutError:
+                        break
+                    replies.append(wire)
+                    self.last_receiver = receiver
+                    if confirmed:
+                        break
+                    deadline = min(deadline, loop.time() + COLLECT_WINDOW)
+                return replies
+            finally:
+                loop.remove_reader(sock.fileno())
+                if raw is not None:
+                    loop.remove_reader(raw.fileno())
+                    raw.close()
 
 
 async def discover_host(config: dict, lock: asyncio.Lock) -> str | None:

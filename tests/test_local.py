@@ -98,7 +98,7 @@ class Device:
         self.reject_change = reject_change
         self.requests = []
 
-    async def exchange(self, wire):
+    async def exchange(self, wire, *, expected=None):
         settings = request_settings(wire)
         self.requests.append(settings)
         if self.drop_first:

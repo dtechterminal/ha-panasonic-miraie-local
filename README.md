@@ -40,7 +40,7 @@ You only need to add the repository once. Future updates are available through H
 
 The check briefly changes the AC’s target temperature by **1°C**, then restores it. It does not send a power-on command.
 
-**If setup asks for network settings:** your AC may be on a separate IoT network, or your network may block discovery. Do not guess at the advanced fields. Use the [separate-network guide](docs/advanced.md#separate-iot-vlan-optional-linux-gateway-receiver). This setup needs extra configuration.
+**If setup asks for the AC’s address:** find it in your router’s device list, enter it, and leave **Automatic** selected. If you use a separate IoT network, read the [separate-network guide](docs/advanced.md#separate-iot-vlan). Home Assistant must be able to receive replies from that network.
 
 ## 3. Optional: stop the AC using the internet
 
@@ -72,7 +72,7 @@ It signs in once to get the information needed for local control. Your account p
 No. Normal control stays inside your home network. A factory reset or re-pairing may mean you need to set it up again.
 
 **Do I need to keep a computer running?**  
-No separate Mac or computer service is needed. Home Assistant must remain running. If you use the advanced gateway method, that gateway must remain available too.
+No separate Mac or computer service is needed. Home Assistant must remain running. All native control and reply handling run inside Home Assistant. Router SSH access is not used.
 
 **Can I install without HACS, use existing local keys, or move from an older integration?**  
 Yes—see the [advanced guide](docs/advanced.md).

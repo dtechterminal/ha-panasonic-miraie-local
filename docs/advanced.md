@@ -4,7 +4,7 @@ Start with the [simple installation guide](../README.md). This page is for separ
 
 ## Manual installation without HACS
 
-Download `ac_mitm.zip` from the [latest release](https://github.com/dtechterminal/ha-panasonic-miraie-local/releases/latest), extract it, and copy its `custom_components/ac_mitm` folder into Home Assistant's `/config/custom_components/` directory. Restart Home Assistant, then add **Panasonic AC Local** from Devices & services. Keep local keys and SSH files outside the integration folder so updates do not overwrite them.
+Download `ac_mitm.zip` from the [latest release](https://github.com/dtechterminal/ha-panasonic-miraie-local/releases/latest), extract it, and copy its `custom_components/ac_mitm` folder into Home Assistant's `/config/custom_components/` directory. Restart Home Assistant, then add **Panasonic AC Local** from Devices & services. Device keys are stored in the HA config entry, outside the integration folder.
 
 ## Network requirements
 
@@ -14,28 +14,33 @@ This is the simplest setup. HA sends UDP to the AC on port **5001**; the tested 
 
 If automatic discovery fails, setup offers the AC's IPv4 address and transport settings. Use a DHCP reservation so its address stays stable. Some networks suppress broadcasts; merely opening UDP between VLANs does not route a limited broadcast.
 
-### Separate IoT VLAN: optional Linux gateway receiver
+### Separate IoT VLAN
 
-An advanced transport can receive the AC's replies on its own VLAN and pass the encrypted packets to HA over SSH. It runs directly from HA; it does not need a Mac, extra bridge daemon, or firewall redirects.
+The AC replies to the local broadcast address `255.255.255.255:5002`. Opening firewall ports between VLANs does not route this broadcast.
 
-Prepare these once:
+Version 2.1 adds a receiver **inside Home Assistant**. Automatic mode listens for normal UDP replies and, where available, AC packets already reaching HA's Linux network interface. It handles VLAN tags both in Ethernet frames and in NIC offload metadata. Commands continue through the existing unicast route to the AC.
 
-- A Linux gateway with Python 3 and an interface on the AC VLAN.
-- An SSH account able to create an `AF_PACKET` raw socket, normally root or an appropriately configured account with `CAP_NET_RAW`.
-- A dedicated, unencrypted SSH private key accessible **inside HA Core**, such as `/config/.ssh/panasonic_local_ed25519`, with mode `0600`. Add its public key to the gateway's authorized keys.
-- A `known_hosts` file inside HA containing the gateway's **verified** host key. Host-key verification is mandatory; it is never disabled by the integration.
+For this to work across VLANs:
 
-When discovery falls back to network settings, select **Linux gateway over SSH**, then provide its SSH host/user, key and known-hosts paths, VLAN interface, and IPv4 address on the AC VLAN. These values are network-specific. Only ciphertext and network addresses are sent to the gateway; the AES key stays in HA.
+- The switch and VM network must already carry the AC VLAN to HA's interface (a VLAN trunk), or HA must have an interface on the AC VLAN.
+- The HA process needs existing `CAP_NET_RAW` permission for the packet receiver. The integration does not grant privileges, enable promiscuous mode, add interfaces, or change firewall rules.
+- VLAN-tagged broadcast traffic must reach that interface. The receiver cannot recover traffic that the switch or hypervisor removes.
 
-The gateway executes a short Python receiver per exchange. No gateway service is installed, no routing/firewall rules are edited, and no persistent remote program is deployed. A forced `python3 -` SSH command limits command selection but still executes Python from HA, so the SSH account remains a privileged trust relationship.
+If the packet receiver is unavailable, Automatic mode continues with standard UDP. In a separate VLAN this will fail verification unless an ordinary local receive path exists. A properly filtered HA interface on the AC VLAN is another option. Configure the actual network boundary deliberately; the integration cannot create cross-VLAN connectivity on its own.
+
+Enter the AC IP when discovery cannot cross the VLAN boundary. Advanced setup allows an explicit network adapter and receive VLAN ID; otherwise the adapter is selected from HA's IPv4 route to the AC. Override the adapter when policy routing or a separate receive interface makes that route unsuitable. Standard UDP and HA-local VLAN receiver can also be selected explicitly.
+
+The receiver validates IP/UDP lengths and checksums, source IP/ports, optional VLAN, device ID and decrypted status. It only retains accepted AC replies for the current exchange. AES-CBC itself does not provide cryptographic authentication.
+
+**Upgrading from 2.0:** router SSH transport has been removed. Existing gateway entries migrate to Automatic while retaining device keys and entity IDs; obsolete gateway settings are removed. If VLAN replies do not already reach HA, configure a local receive path. The integration cannot remove keys previously installed on a router: revoke those separately. An entry you disabled stays disabled until you enable it.
 
 ### Existing HTTP bridge
 
-An advanced compatibility option retains older local HTTP bridge installations. It requires an already working native UDP bridge. Its account/bootstrap, gateway and verification behavior belongs to that bridge; the seamless native setup described above applies to direct/gateway mode. New installations should use native mode.
+An advanced compatibility option retains older local HTTP bridge installations. It requires an already working native UDP bridge. Its account/bootstrap and verification behavior belongs to that bridge; the native setup described above applies to the built-in local transports. New installations should use native mode.
 
 ## Block cloud access after local verification
 
-Create an outbound **internet/WAN-only** block for the AC, covering IPv4 and IPv6. Keep it connected to Wi-Fi and keep LAN access allowed. Preserve DHCP/DNS as needed, UDP 5001 to the AC, UDP 5002 replies, and HA-to-gateway SSH if using that transport.
+Create an outbound **internet/WAN-only** block for the AC, covering IPv4 and IPv6. Keep it connected to Wi-Fi and keep LAN access allowed. Preserve DHCP/DNS as needed, UDP 5001 to the AC, UDP 5002 replies.
 
 Do not use a device pause/disconnect feature that also blocks LAN traffic. An existing proxy or relay can provide another cloud route; remove it if you want complete isolation. Vendor apps and cloud-dependent features may stop working.
 
@@ -59,8 +64,8 @@ Existing `ac_mitm` entries and entity unique IDs remain supported. Reconfigure t
 
 - **No ACs after login:** check that this is the Panasonic India MirAIe account and that the device is already registered there.
 - **No local key:** the model/account may not expose this protocol. Do not block WAN yet.
-- **Local verification fails:** check the AC IP, same-VLAN broadcast path, UDP 5001/5002, and local key. For gateway mode, also check SSH authentication, verified host keys, interface/source address, Python and raw-socket privileges.
-- **Bridge works but native discovery fails:** broadcast replies may be on a different VLAN. Choose the gateway transport or place HA on the AC VLAN.
+- **Local verification fails:** check the AC IP, same-VLAN broadcast path, UDP 5001/5002, and local key. For separate VLANs, check the network trunk, receive adapter and existing packet-socket permissions.
+- **Bridge works but native discovery fails:** broadcast replies may be on a different VLAN. Enter the AC IP and use Automatic with a working local VLAN receive path.
 - **Features unavailable:** local keys and a responding device do not guarantee support for every model-specific control.
 
 ## Protocol and development
@@ -70,11 +75,11 @@ The tested firmware accepts device-ID TLV type `0`, followed by encrypted comman
 Run the standalone protocol/client tests with Python 3.13+:
 
 ```sh
-python -m pip install pytest pytest-asyncio cryptography asyncssh==2.24.1 aiohttp ruff
+python -m pip install pytest pytest-asyncio cryptography aiohttp scapy ruff
 ruff check .
 pytest -q
 ```
 
-Tests cover malformed/wrong-device frames, numeric settings, dropped packets, intermediate acknowledgements, a rejected setting change, temperature restoration, and account bootstrap without persisting password/token. Live testing on the model above also verified HA commands with WAN blocked and the optional gateway transport. Same-VLAN discovery is implemented and covered at the packet/transport level; broader model/network compatibility needs testing.
+Tests cover malformed/wrong-device frames, numeric settings, dropped packets, intermediate acknowledgements, a rejected setting change, temperature restoration, and account bootstrap without persisting password/token. See [testing](testing.md) for release-specific live results and their limits. Same-VLAN discovery is implemented and covered at the packet/transport level; broader model/network compatibility needs testing.
 
 Licensed under MIT. Please report model, firmware, network topology and redacted errors when filing an issue. Never include account passwords, local keys, HA tokens or raw configuration entries.

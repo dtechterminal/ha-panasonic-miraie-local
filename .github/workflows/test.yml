@@ -10,6 +10,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install pytest pytest-asyncio cryptography asyncssh==2.24.1 aiohttp ruff
+      - run: python -m pip install pytest pytest-asyncio cryptography aiohttp scapy ruff
       - run: ruff check .
       - run: pytest -q

@@ -13,9 +13,20 @@ from .api import AcMitmApi
 from .const import DOMAIN
 from .coordinator import AcMitmCoordinator
 from .native import NativeApi
-from .transport import UdpTransport
+from .transport import UdpTransport, local_config
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Retain entities and keys while retiring the remote SSH transport."""
+    if entry.version > 2:
+        return False
+    if entry.version < 2:
+        hass.config_entries.async_update_entry(
+            entry, data=local_config(dict(entry.data)), version=2
+        )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -14,11 +14,11 @@ from .api import AcMitmApi, AcMitmApiError
 from .cloud import Bootstrap, BootstrapError, InvalidAuth
 from .const import DOMAIN
 from .native import NativeApi, verify_local
-from .transport import UdpTransport, discover_host
+from .transport import UdpTransport, discover_host, local_config
 
 
 class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self):
         self._bootstrap = None
@@ -30,7 +30,9 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_menu(step_id="user", menu_options=["account", "manual", "bridge"])
 
     async def async_step_reconfigure(self, user_input=None) -> ConfigFlowResult:
-        self._config = dict(self._get_reconfigure_entry().data)
+        self._config = local_config(dict(self._get_reconfigure_entry().data))
+        if self._config.get("device_id"):
+            return await self.async_step_network()
         return await self.async_step_user()
 
     def _finish(self, title, data):
@@ -136,7 +138,7 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _discover_and_verify(self):
-        if self._config.get("transport") == "gateway" and self._config.get("host"):
+        if self._config.get("host"):
             return await self._verify()
         shared = self.hass.data.setdefault(DOMAIN, {})
         lock = shared.setdefault("_udp_lock", asyncio.Lock())
@@ -146,7 +148,7 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
             return False
         if not host:
             return False
-        self._config.update({"host": host, "transport": "direct"})
+        self._config.update({"host": host, "transport": "auto"})
         return await self._verify()
 
     async def async_step_discover(self, user_input=None) -> ConfigFlowResult:
@@ -165,67 +167,33 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_network(self, user_input=None) -> ConfigFlowResult:
         errors = {}
         if user_input is not None:
-            self._config.update(user_input)
-            if user_input["transport"] == "gateway":
-                return await self.async_step_gateway()
-            if await self._verify():
-                return await self.async_step_firewall()
-            errors["base"] = "local_unreachable"
-        return self.async_show_form(
-            step_id="network",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("host", default=self._config.get("host", "")): str,
-                    vol.Required(
-                        "transport", default=self._config.get("transport", "direct")
-                    ): vol.In(
-                        {
-                            "direct": "Direct UDP (HA on the AC VLAN)",
-                            "gateway": "Linux gateway over SSH (different VLANs)",
-                        }
-                    ),
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_gateway(self, user_input=None) -> ConfigFlowResult:
-        errors = {}
-        if user_input is not None:
+            self._config = local_config(self._config)
+            if self.show_advanced_options:
+                for optional in ("packet_interface", "vlan_id"):
+                    self._config.pop(optional, None)
             self._config.update(user_input)
             if await self._verify():
                 return await self.async_step_firewall()
             errors["base"] = "local_unreachable"
-        return self.async_show_form(
-            step_id="gateway",
-            data_schema=vol.Schema(
+        schema = {
+            vol.Required("host", default=self._config.get("host", "")): str,
+            vol.Required("transport", default=self._config.get("transport", "auto")): vol.In(
                 {
-                    vol.Required("gateway_host", default=self._config.get("gateway_host", "")): str,
-                    vol.Required(
-                        "gateway_port", default=self._config.get("gateway_port", 22)
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
-                    vol.Required(
-                        "gateway_username", default=self._config.get("gateway_username", "root")
-                    ): str,
-                    vol.Required(
-                        "gateway_key_file",
-                        default=self._config.get(
-                            "gateway_key_file", "/config/.ssh/panasonic_local_ed25519"
-                        ),
-                    ): str,
-                    vol.Required(
-                        "gateway_known_hosts",
-                        default=self._config.get("gateway_known_hosts", "/config/.ssh/known_hosts"),
-                    ): str,
-                    vol.Required(
-                        "gateway_interface", default=self._config.get("gateway_interface", "")
-                    ): str,
-                    vol.Required(
-                        "gateway_source", default=self._config.get("gateway_source", "")
-                    ): str,
+                    "auto": "Automatic (recommended)",
+                    "direct": "Standard UDP",
+                    "packet": "HA-local VLAN receiver (Linux)",
                 }
             ),
-            errors=errors,
+        }
+        if self.show_advanced_options:
+            for key, validator in (
+                ("packet_interface", str),
+                ("vlan_id", vol.All(vol.Coerce(int), vol.Range(min=1, max=4094))),
+            ):
+                default = {"default": self._config[key]} if key in self._config else {}
+                schema[vol.Optional(key, **default)] = validator
+        return self.async_show_form(
+            step_id="network", data_schema=vol.Schema(schema), errors=errors
         )
 
     async def _verify(self):

@@ -36,28 +36,17 @@
       },
       "network": {
         "title": "AC local network",
-        "description": "Reserve an IP for the AC. Direct UDP requires HA to receive the AC’s VLAN-local broadcasts on UDP 5002. Merely allowing inter-VLAN unicast is insufficient. A Linux gateway receiver is available for separate VLANs. Verification briefly adjusts the target by 1°C, then restores it; power is unchanged.",
+        "description": "Enter the AC address from your router and leave Automatic selected. Home Assistant must receive the AC replies on its own network connection. Separate IoT networks may need VLAN setup; see the network guide. Verification briefly changes the target by 1°C, then restores it without changing power.",
         "data": {
           "host": "AC IPv4 address",
-          "transport": "Local transport"
-        }
-      },
-      "gateway": {
-        "title": "Linux gateway receiver",
-        "description": "Advanced: gateway needs Python 3, access to the AC VLAN, and root or CAP_NET_RAW. Prepare a dedicated SSH key in HA and a verified known_hosts file. This integration never disables host-key verification or edits gateway firewall rules. Verification briefly changes and restores the temperature.",
-        "data": {
-          "gateway_host": "Gateway SSH host",
-          "gateway_port": "SSH port",
-          "gateway_username": "SSH user",
-          "gateway_key_file": "Private key path inside HA",
-          "gateway_known_hosts": "Known-hosts file path inside HA",
-          "gateway_interface": "Gateway interface on AC VLAN",
-          "gateway_source": "Gateway IPv4 address on AC VLAN"
+          "transport": "Local transport",
+          "packet_interface": "Network adapter (optional, advanced)",
+          "vlan_id": "Receive VLAN ID (optional, advanced)"
         }
       },
       "firewall": {
         "title": "Local control verified — optional cloud isolation",
-        "description": "A local temperature change and restoration succeeded. You can now block this AC’s internet/WAN access on your firewall, for IPv4 and IPv6. Keep Wi-Fi/LAN enabled, DHCP/DNS as needed, UDP 5001 to the AC, and UDP 5002 broadcast replies. Preserve SSH access if using the gateway receiver. Do not pause or disconnect the device. Click Submit after applying the block, or skip the block and finish; local control is tested again before setup completes. This integration does not change firewall rules or verify that WAN is blocked."
+        "description": "A local temperature change and restoration succeeded. You can now block this AC’s internet/WAN access on your firewall, for IPv4 and IPv6. Keep Wi-Fi/LAN enabled, DHCP/DNS as needed, UDP 5001 to the AC, and UDP 5002 broadcast replies. Do not pause or disconnect the device. Click Submit after applying the block, or skip the block and finish; local control is tested again before setup completes. This integration does not change firewall rules or verify that WAN is blocked."
       },
       "bridge": {
         "title": "Existing local bridge",
@@ -78,7 +67,7 @@
       "no_devices": "No ACs were found in this MirAIe account.",
       "no_local_key": "This device does not expose a usable local control key.",
       "invalid_key": "Check the device ID, 64-character key and 32-character IV.",
-      "local_unreachable": "Local read/write verification failed. Check the IP, keys, broadcast path, UDP ports, and gateway SSH settings. Do not block WAN until local verification succeeds."
+      "local_unreachable": "Local read/write verification failed. Check the AC address, keys, and whether AC broadcasts reach Home Assistant. See the network guide for separate IoT networks. Do not block WAN until local verification succeeds."
     },
     "abort": {
       "already_configured": "This device is already configured."

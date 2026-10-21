@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import time
 
-import asyncssh
-
 from .api import AcMitmApiError
 from .protocol import Protocol, ProtocolError, command_settings, matches
 from .transport import UdpTransport
@@ -23,10 +21,12 @@ class NativeApi:
     async def _exchange(self, settings: dict | None = None) -> dict:
         for attempt in range(3):
             try:
-                packets = await self.transport.exchange(self.protocol.encode(settings))
-            except (OSError, TimeoutError, ValueError, asyncssh.Error) as err:
+                packets = await self.transport.exchange(
+                    self.protocol.encode(settings), expected=settings
+                )
+            except (OSError, TimeoutError, ValueError) as err:
                 raise AcMitmApiError(
-                    "Local UDP transport failed; check device/network and gateway settings"
+                    "Local UDP transport failed; check device IP and HA network access"
                 ) from err
             states = []
             for wire in packets:
@@ -50,6 +50,7 @@ class NativeApi:
                 "enabled": True,
                 "available": True,
                 "transport": "local_udp",
+                "receiver": getattr(self.transport, "last_receiver", None),
                 "model": self.config.get("model"),
                 "firmware": self.config.get("firmware"),
                 "last_update": time.time(),

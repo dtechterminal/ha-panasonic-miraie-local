@@ -12,3 +12,6 @@ for name, path in [
     module = types.ModuleType(name)
     module.__path__ = [str(path)]
     sys.modules[name] = module
+    if "." in name:
+        parent, child = name.rsplit(".", 1)
+        setattr(sys.modules[parent], child, module)
