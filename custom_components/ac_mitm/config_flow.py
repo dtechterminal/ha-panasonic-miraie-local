@@ -43,6 +43,15 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         return self.async_create_entry(title=title, data=data)
 
+    async def _check_device_unique_id(self):
+        await self.async_set_unique_id(self._config["device_id"])
+        if (
+            self.source == "reconfigure"
+            and self._get_reconfigure_entry().unique_id == self._config["device_id"]
+        ):
+            return
+        self._abort_if_unique_id_configured()
+
     async def async_step_account(self, user_input=None) -> ConfigFlowResult:
         errors = {}
         if user_input is not None:
@@ -79,13 +88,12 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             try:
-                self._config = await self._bootstrap.credentials(user_input["device_id"])
+                self._config.update(await self._bootstrap.credentials(user_input["device_id"]))
             except BootstrapError:
                 errors["base"] = "no_local_key"
             else:
                 self._bootstrap = None
-                await self.async_set_unique_id(self._config["device_id"])
-                self._abort_if_unique_id_configured()
+                await self._check_device_unique_id()
                 return await self.async_step_discover()
         return self.async_show_form(
             step_id="device",
@@ -109,9 +117,8 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
             except (ValueError, ProtocolError):
                 errors["base"] = "invalid_key"
             else:
-                self._config = dict(user_input)
-                await self.async_set_unique_id(self._config["device_id"])
-                self._abort_if_unique_id_configured()
+                self._config.update(user_input)
+                await self._check_device_unique_id()
                 return await self.async_step_network()
         secret = selector.TextSelector(
             selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
@@ -129,6 +136,8 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _discover_and_verify(self):
+        if self._config.get("transport") == "gateway" and self._config.get("host"):
+            return await self._verify()
         shared = self.hass.data.setdefault(DOMAIN, {})
         lock = shared.setdefault("_udp_lock", asyncio.Lock())
         try:
@@ -167,7 +176,9 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required("host", default=self._config.get("host", "")): str,
-                    vol.Required("transport", default="direct"): vol.In(
+                    vol.Required(
+                        "transport", default=self._config.get("transport", "direct")
+                    ): vol.In(
                         {
                             "direct": "Direct UDP (HA on the AC VLAN)",
                             "gateway": "Linux gateway over SSH (different VLANs)",
@@ -190,14 +201,22 @@ class AcMitmConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required("gateway_host", default=self._config.get("gateway_host", "")): str,
-                    vol.Required("gateway_port", default=22): vol.All(
-                        vol.Coerce(int), vol.Range(min=1, max=65535)
-                    ),
-                    vol.Required("gateway_username", default="root"): str,
                     vol.Required(
-                        "gateway_key_file", default="/config/.ssh/panasonic_local_ed25519"
+                        "gateway_port", default=self._config.get("gateway_port", 22)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                    vol.Required(
+                        "gateway_username", default=self._config.get("gateway_username", "root")
                     ): str,
-                    vol.Required("gateway_known_hosts", default="/config/.ssh/known_hosts"): str,
+                    vol.Required(
+                        "gateway_key_file",
+                        default=self._config.get(
+                            "gateway_key_file", "/config/.ssh/panasonic_local_ed25519"
+                        ),
+                    ): str,
+                    vol.Required(
+                        "gateway_known_hosts",
+                        default=self._config.get("gateway_known_hosts", "/config/.ssh/known_hosts"),
+                    ): str,
                     vol.Required(
                         "gateway_interface", default=self._config.get("gateway_interface", "")
                     ): str,
