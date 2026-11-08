@@ -1,6 +1,9 @@
 {
   "domain": "ac_mitm",
   "name": "Panasonic AC Local",
+  "categories": [
+    "climate.heat_pumps_air_conditioning"
+  ],
   "codeowners": [
     "@ankurpandeyvns"
   ],
@@ -10,5 +13,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/dtechterminal/ha-panasonic-miraie-local/issues",
   "requirements": [],
-  "version": "2.1.1"
+  "version": "2.1.2"
 }
