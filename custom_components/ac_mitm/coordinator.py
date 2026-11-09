@@ -14,15 +14,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AcMitmCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, api, entry_id):
+    def __init__(self, hass, api, entry):
         super().__init__(
             hass,
             _LOGGER,
             name="Panasonic AC Local",
+            config_entry=entry,
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
         self.api = api
-        self.entry_id = entry_id
+        self.entry_id = entry.entry_id
 
     async def _async_update_data(self):
         try:

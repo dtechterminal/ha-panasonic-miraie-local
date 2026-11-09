@@ -88,7 +88,8 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_fan_modes = list(FAN_MODE_MAP)
     _attr_hvac_modes = list(HVAC_MODE_MAP.values())
-    _attr_swing_modes = ["off", "on", "vertical", "horizontal", "both"]
+    # "both" is the AC's only all-vanes swing; a separate "on" read back as "both"
+    _attr_swing_modes = ["off", "vertical", "horizontal", "both"]
 
     def __init__(self, coordinator, api: AcMitmApi, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -189,13 +190,14 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
         """Set the target temperature."""
         hvac_mode = kwargs.get("hvac_mode")
         temperature = kwargs.get("temperature")
-        if temperature is not None:
-            extra = None
-            if hvac_mode is not None and hvac_mode != HVACMode.OFF:
-                extra = {KEY_MODE: MODE_TO_MIRAIe[hvac_mode], KEY_POWER: "on"}
-            await self._send(KEY_TARGET_TEMP, str(temperature), extra=extra)
-        elif hvac_mode is not None:
-            await self.async_set_hvac_mode(hvac_mode)
+        if temperature is None:
+            if hvac_mode is not None:
+                await self.async_set_hvac_mode(hvac_mode)
+            return
+        extra = None
+        if hvac_mode is not None and hvac_mode != HVACMode.OFF:
+            extra = {KEY_MODE: MODE_TO_MIRAIe[hvac_mode], KEY_POWER: "on"}
+        await self._send(KEY_TARGET_TEMP, str(temperature), extra=extra)
         if hvac_mode == HVACMode.OFF:
             await self.async_turn_off()
 
@@ -208,7 +210,6 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
         """Set the swing mode."""
         positions = {
             "off": ("3", "3"),
-            "on": ("0", "0"),
             "vertical": ("0", "3"),
             "horizontal": ("3", "0"),
             "both": ("0", "0"),
