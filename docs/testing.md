@@ -51,7 +51,7 @@ The account bootstrap was tested live in 2.0.0 and remains covered by unit tests
 
 Packet fixtures are encoded independently with Scapy. The asynchronous receiver is exercised with real file descriptors without requiring root in CI. Ruff passes; the test-quality review found no zero-assertion or tautological tests.
 
-GitHub Actions runs the tests and HACS validation. The HACS brands check is excluded because this custom repository has no upstream Home Assistant brands registration.
+GitHub Actions runs the tests, hassfest and the full HACS validation, including the brands check.
 
 ## Network compatibility limits
 

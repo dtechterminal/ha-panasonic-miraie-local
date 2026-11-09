@@ -19,18 +19,12 @@ You need:
 ## 1. Install it with HACS
 
 1. Open **HACS** in Home Assistant.
-2. Open the **⋮ menu → Custom repositories**.
-3. Paste this address:
+2. Search for **Panasonic AC Local**, open it, and click **Download**.
+3. **Restart Home Assistant.**
 
-   ```text
-   https://github.com/dtechterminal/ha-panasonic-miraie-local
-   ```
+Future updates appear in Home Assistant's update list.
 
-4. Choose **Integration** as the category, then click **Add**.
-5. Find **Panasonic AC Local** in HACS and download it.
-6. **Restart Home Assistant.**
-
-You only need to add the repository once. Future updates are available through HACS.
+**Added it earlier as a custom repository?** Nothing to change; updates keep working.
 
 Home Assistant 2026.3 or newer displays the bundled Panasonic logo locally. See [brand image credits](docs/branding.md).
 
@@ -85,4 +79,4 @@ Yes—see the [advanced guide](docs/advanced.md).
 
 [Open an issue](https://github.com/dtechterminal/ha-panasonic-miraie-local/issues) with your AC model, firmware version, and the error you see. Never post passwords, local keys, or HA tokens.
 
-This is an independent community integration, not an official Panasonic product. It is available as a **HACS custom repository**, not in HACS’s default catalog.
+This is an independent community integration, not an official Panasonic product. It is available in HACS’s default catalog.

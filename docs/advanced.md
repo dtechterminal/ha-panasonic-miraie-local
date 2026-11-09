@@ -4,7 +4,7 @@ Start with the [simple installation guide](../README.md). This page is for separ
 
 ## Manual installation without HACS
 
-Download `ac_mitm.zip` from the [latest release](https://github.com/dtechterminal/ha-panasonic-miraie-local/releases/latest), extract it, and copy its `custom_components/ac_mitm` folder into Home Assistant's `/config/custom_components/` directory. Restart Home Assistant, then add **Panasonic AC Local** from Devices & services. Device keys are stored in the HA config entry, outside the integration folder.
+Download the source code of the [latest release](https://github.com/dtechterminal/ha-panasonic-miraie-local/releases/latest), extract it, and copy its `custom_components/ac_mitm` folder into Home Assistant's `/config/custom_components/` directory. Restart Home Assistant, then add **Panasonic AC Local** from Devices & services. Device keys are stored in the HA config entry, outside the integration folder.
 
 ## Network requirements
 
