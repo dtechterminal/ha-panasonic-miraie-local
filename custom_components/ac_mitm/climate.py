@@ -85,6 +85,9 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
     _attr_target_temperature_step = 1
     _attr_min_temp = 16
     _attr_max_temp = 30
+    # HA 2026.11 renamed the temperature members to native_*; the old names remain
+    # for older HA and are what it reads there
+    _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_fan_modes = list(FAN_MODE_MAP)
     _attr_hvac_modes = list(HVAC_MODE_MAP.values())
@@ -112,21 +115,22 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
     def device_info(self):
         return self.coordinator.device_info
 
-    @property
-    def current_temperature(self) -> float | None:
-        value = self._ac.get(KEY_ROOM_TEMP)
+    def _float(self, key: str) -> float | None:
         try:
-            return float(value)
+            return float(self._ac.get(key))
         except (TypeError, ValueError):
             return None
 
     @property
-    def target_temperature(self) -> float | None:
-        value = self._ac.get(KEY_TARGET_TEMP)
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
+    def native_current_temperature(self) -> float | None:
+        return self._float(KEY_ROOM_TEMP)
+
+    @property
+    def native_target_temperature(self) -> float | None:
+        return self._float(KEY_TARGET_TEMP)
+
+    current_temperature = native_current_temperature
+    target_temperature = native_target_temperature
 
     @property
     def hvac_mode(self) -> HVACMode:

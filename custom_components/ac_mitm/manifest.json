@@ -13,5 +13,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/dtechterminal/ha-panasonic-miraie-local/issues",
   "requirements": [],
-  "version": "2.1.4"
+  "version": "2.1.5"
 }
