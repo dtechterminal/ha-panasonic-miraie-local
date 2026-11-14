@@ -85,6 +85,35 @@ def command_settings(action: str, value, extra: dict | None = None) -> dict:
     return settings
 
 
+def _firmware_at_least(state: dict, major: int, minor: int) -> bool:
+    try:
+        have_major, have_minor = str(state.get("V", "")).split(".")[:2]
+        return (int(have_major), int(have_minor)) >= (major, minor)
+    except ValueError:
+        return False
+
+
+def room_temperature(state: dict) -> float | None:
+    """Return the room temperature in °C from a status reply, or None if unknown.
+
+    Firmware 3.02 and newer pack rmtmp as "<prefix>.<whole °C>": the digits after the
+    decimal point are the room temperature ("128.25" -> 25, "01.26" -> 26) and the
+    prefix is unrelated data. "00.0" means the unit has no reading yet (it is off, or
+    has just started). Older firmware sends a plain value such as "26.0".
+    """
+    raw = state.get("rmtmp")
+    if _firmware_at_least(state, 3, 2) and isinstance(raw, str) and "." in raw:
+        try:
+            degrees = int(raw.split(".", 1)[1])
+        except ValueError:
+            return None
+        return float(degrees) if degrees > 0 else None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def matches(state: dict, settings: dict) -> bool:
     for key, value in settings.items():
         if key not in state:

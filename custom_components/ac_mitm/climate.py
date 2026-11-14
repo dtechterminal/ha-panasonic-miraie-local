@@ -28,12 +28,12 @@ from .const import (
     KEY_ONLINE,
     KEY_POWER,
     KEY_POWERFUL,
-    KEY_ROOM_TEMP,
     KEY_SWING_HORIZONTAL,
     KEY_SWING_VERTICAL,
     KEY_TARGET_TEMP,
 )
 from .coordinator import AcMitmCoordinator
+from .protocol import room_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class AcMitmClimate(ClimateEntity, CoordinatorEntity[AcMitmCoordinator]):
 
     @property
     def native_current_temperature(self) -> float | None:
-        return self._float(KEY_ROOM_TEMP)
+        return room_temperature(self._ac)
 
     @property
     def native_target_temperature(self) -> float | None:
