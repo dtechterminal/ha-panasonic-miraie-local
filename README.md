@@ -4,6 +4,11 @@
 
 **Control your Panasonic AC from Home Assistant—even when the AC cannot access the internet.**
 
+> **This is a fork** of [dtechterminal/ha-panasonic-miraie-local](https://github.com/dtechterminal/ha-panasonic-miraie-local) by Ankur Pandey.
+> It adds decoding of the room temperature that firmware 3.02 and newer pack into `rmtmp`
+> (for example `"128.25"` → 25 °C instead of showing 128.25 °C). Tested on CS-CU-NU18BKY5WX, firmware 3.02.
+> To install it, add `https://github.com/M-chedalla/ha-panasonic-miraie-ac-india` in Marketplace → Custom repositories (type: Integration).
+
 No changes to the AC, special certificates, or Matter setup are needed.
 
 ## Before you start
@@ -77,6 +82,6 @@ Yes—see the [advanced guide](docs/advanced.md).
 
 ## Need help?
 
-[Open an issue](https://github.com/dtechterminal/ha-panasonic-miraie-local/issues) with your AC model, firmware version, and the error you see. Never post passwords, local keys, or HA tokens.
+[Open an issue](https://github.com/M-chedalla/ha-panasonic-miraie-ac-india/issues) with your AC model, firmware version, and the error you see. Never post passwords, local keys, or HA tokens.
 
 This is an independent community integration, not an official Panasonic product. It is available in HACS’s default catalog.
