@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 import json
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -83,6 +84,27 @@ def command_settings(action: str, value, extra: dict | None = None) -> dict:
     if "actmp" in settings and not 16 <= float(settings["actmp"]) <= 30:
         raise ProtocolError("Temperature must be 16–30°C")
     return settings
+
+
+def room_temperature(value) -> float | None:
+    """Return the room temperature in °C from an ``rmtmp`` value, or None.
+
+    Most units report a plain value in 0.5 °C steps ("27.0", "24.5"). Some
+    firmware (seen on CS-CU-NU18BKY5WX, 3.02) packs unrelated data in front and
+    the whole degrees after the point: "128.25" -> 25, "01.26" -> 26. Plain
+    values never have hundredths, so the fraction alone tells the formats apart.
+    "0.0" means no reading yet; anything outside 0–60 °C is not a room reading.
+    """
+    try:
+        number = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError):
+        return None
+    if not number.is_finite():
+        return None
+    fraction = number % 1
+    if fraction not in (0, Decimal("0.5")):
+        number = (fraction * 100).to_integral_value()
+    return float(number) if 0 < number < 60 else None
 
 
 def matches(state: dict, settings: dict) -> bool:

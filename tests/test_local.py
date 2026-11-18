@@ -10,6 +10,7 @@ from custom_components.ac_mitm.protocol import (
     ProtocolError,
     command_settings,
     matches,
+    room_temperature,
     tlv,
 )
 
@@ -143,3 +144,32 @@ async def test_setup_does_not_report_success_for_ignored_commands_and_restores()
         await verify_local(api)
     assert any(r.get("actmp") == "24.0" for r in device.requests)
     assert float(device.state["actmp"]) == 24
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Plain 0.5 °C steps, as CS-CU-EZ18BKYXFM firmware 3.02 reports
+        ("27.0", 27.0),
+        ("24.5", 24.5),
+        (26, 26.0),
+        (25.5, 25.5),
+        # Packed "<data>.<whole °C>", as CS-CU-NU18BKY5WX firmware 3.02 reports
+        ("128.25", 25.0),
+        ("134.24", 24.0),
+        ("01.26", 26.0),
+        ("61.28", 28.0),
+        ("2.29", 29.0),
+        (128.3, 30.0),
+        # No reading yet, impossible, malformed or missing
+        ("0.0", None),
+        ("00.0", None),
+        ("128.0", None),
+        ("-3.0", None),
+        ("nan", None),
+        ("garbage", None),
+        (None, None),
+    ],
+)
+def test_room_temperature(value, expected):
+    assert room_temperature(value) == expected
