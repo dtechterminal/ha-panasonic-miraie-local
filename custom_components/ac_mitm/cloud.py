@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import asyncio
 import uuid
 from urllib.parse import quote
 
 import aiohttp
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BootstrapError(Exception):
@@ -24,20 +27,56 @@ class Bootstrap:
         self.devices: dict[str, dict] = {}
 
     async def _request(self, method, url, **kwargs):
+        host = url.split("/")[2]
+    
         try:
             async with asyncio.timeout(20):
-                async with self.session.request(method, url, **kwargs) as response:
+                async with self.session.request(
+                    method, url, **kwargs
+                ) as response:
+    
                     if response.status in (401, 403):
-                        raise InvalidAuth("MirAIe account authentication was rejected")
+                        _LOGGER.warning(
+                            "MirAIe %s returned HTTP %s: authentication rejected",
+                            host,
+                            response.status,
+                        )
+                        raise InvalidAuth(
+                            "MirAIe account authentication was rejected"
+                        )
+    
                     if response.status >= 400:
+                        if response.status == 412:
+                            body = await response.text()
+                            _LOGGER.warning(
+                                "MirAIe %s returned HTTP 412; response body: %r",
+                                host,
+                                body[:500],
+                            )
+                        else:
+                            _LOGGER.warning(
+                                "MirAIe %s returned HTTP %s",
+                                host,
+                                response.status,
+                            )
+                    
                         raise BootstrapError("MirAIe bootstrap request failed")
+    
                     return await response.json(content_type=None)
+    
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:
-            raise BootstrapError("Cannot reach MirAIe account service") from err
+            _LOGGER.warning(
+                "MirAIe request to %s failed: %s",
+                host,
+                type(err).__name__,
+            )
+            raise BootstrapError(
+                "Cannot reach MirAIe account service"
+            ) from err
 
     async def login(self, username: str, password: str) -> dict[str, str]:
         payload = {
-            "clientId": "PBcMcfG19njNCL8AOgvRzIC8AjQa",
+            "clientId": "292d99d7-5623-4157-8a71-846ee3ff5dbf",
             "password": password,
             "scope": "an_" + uuid.uuid4().hex,
         }
