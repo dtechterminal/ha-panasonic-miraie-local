@@ -67,6 +67,7 @@ Existing `ac_mitm` entries and entity unique IDs remain supported. Reconfigure t
 - **Local verification fails:** check the AC IP, same-VLAN broadcast path, UDP 5001/5002, and local key. For separate VLANs, check the network trunk, receive adapter and existing packet-socket permissions.
 - **Bridge works but native discovery fails:** broadcast replies may be on a different VLAN. Enter the AC IP and use Automatic with a working local VLAN receive path.
 - **Features unavailable:** local keys and a responding device do not guarantee support for every model-specific control.
+- **Check what the AC reports:** download diagnostics from the device page. They show the AC's last status exactly as received, with the local key, IV, identifiers and account details redacted.
 
 ## Protocol and development
 
