@@ -7,7 +7,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import AcMitmApiError
-from .const import DOMAIN, KEY_COIL_CLEANING, KEY_DISPLAY, KEY_ECONOMY, KEY_POWERFUL
+from .const import DOMAIN, KEY_COIL_CLEANING, KEY_DISPLAY, KEY_ECONOMY, KEY_NANOE, KEY_POWERFUL
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -20,6 +20,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 (KEY_POWERFUL, "Powerful"),
                 (KEY_ECONOMY, "Economy"),
                 (KEY_COIL_CLEANING, "Coil cleaning"),
+                (KEY_NANOE, "nanoe"),
             ]
         ]
     )

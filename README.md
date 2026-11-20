@@ -56,7 +56,7 @@ The integration does not change router settings for you. Panasonic’s app and c
 
 - AC on/off, operating mode, and temperature.
 - The AC’s own fan speed and swing.
-- Display, Powerful mode, Economy mode, and coil cleaning.
+- Display, Powerful mode, Economy mode, coil cleaning, and nanoe where the AC reports it.
 - Capacity limit, where supported by the AC.
 
 These controls belong to the AC. Existing Home Assistant automations may separately link it to ceiling fans or other devices.
