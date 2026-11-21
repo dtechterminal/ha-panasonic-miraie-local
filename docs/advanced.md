@@ -50,7 +50,7 @@ The integration advises you after a successful local write/readback test. It **d
 
 - Climate: power, HVAC mode, target temperature, AC fan speed, swing, room temperature.
 - Switches: display, powerful, economy, coil cleaning.
-- Select: convertible capacity limit.
+- Selects: convertible capacity limit, and the vertical and horizontal vane positions (swing, or a fixed position 1–5).
 
 Optional feature entities report availability from the device's local state. Feature support varies by model. Historical energy statistics, cloud schedules, firmware updates and unsupported model features are not implemented.
 
