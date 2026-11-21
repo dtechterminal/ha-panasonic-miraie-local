@@ -54,7 +54,7 @@ The integration advises you after a successful local write/readback test. It **d
 
 Optional feature entities report availability from the device's local state. Feature support varies by model. Historical energy statistics, cloud schedules, firmware updates and unsupported model features are not implemented.
 
-Economy uses `acem`; coil cleaning uses `acec`. Swing/capacity fields are sent as JSON integers. Commands require device readback, retry lost UDP packets, and tolerate intermediate acknowledgements while settings settle. Failed commands are surfaced to HA instead of being reported as successful optimistically.
+Economy uses `acem`; coil cleaning uses `acec`; nanoe uses `acng`. Feature switches send only `on` or `off`. Swing/capacity fields are sent as JSON integers. Commands require device readback, retry lost UDP packets, and tolerate intermediate acknowledgements while settings settle. Failed commands are surfaced to HA instead of being reported as successful optimistically.
 
 ## Migrate an earlier installation
 

@@ -60,7 +60,7 @@ class Protocol:
 
 
 def command_settings(action: str, value, extra: dict | None = None) -> dict:
-    allowed = {"ps", "acmd", "actmp", "acfs", "acvs", "achs", "acpm", "acem", "acec", "acdc", "cnv"}
+    allowed = {"ps", "acmd", "actmp", "acfs", "acvs", "achs", "acpm", "acem", "acec", "acdc", "acng", "cnv"}
     if (
         action not in allowed
         or not isinstance(extra or {}, dict)
@@ -81,6 +81,9 @@ def command_settings(action: str, value, extra: dict | None = None) -> dict:
         raise ProtocolError("Unsupported capacity")
     if "ps" in settings and settings["ps"] not in ["on", "off"]:
         raise ProtocolError("Invalid power state")
+    for key in ("acpm", "acem", "acec", "acdc", "acng"):
+        if key in settings and settings[key] not in ["on", "off"]:
+            raise ProtocolError("Feature switches take on or off")
     if "actmp" in settings and not 16 <= float(settings["actmp"]) <= 30:
         raise ProtocolError("Temperature must be 16–30°C")
     return settings
