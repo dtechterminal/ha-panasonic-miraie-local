@@ -14,7 +14,17 @@ You need:
 - A Panasonic **India MirAIe** AC that already works in the MirAIe phone app.
 - Your MirAIe email/mobile number and password.
 
-**Tested:** Panasonic CS-CU-EZ18BKYXFM, firmware 3.02. Other models may work, but have not been confirmed. This does not support Panasonic Comfort Cloud accounts.
+**Reported working:**
+
+| Model | Firmware | Reported in | Notes |
+|---|---|---|---|
+| CS/CU-EZ18BKYXFM | 3.02 | Maintainer | Full live test, AC internet blocked ([testing](docs/testing.md)) |
+| CS/CU-EU18CKY5XFM | 3.02 | [#5](https://github.com/dtechterminal/ha-panasonic-miraie-local/pull/5), [#6](https://github.com/dtechterminal/ha-panasonic-miraie-local/pull/6) | Vane positions set and read back; reports nanoe |
+| CS/CU-NU18BKY5WX | 3.02 | [#1](https://github.com/dtechterminal/ha-panasonic-miraie-local/issues/1) | Needs 2.1.6 or newer for the correct room temperature |
+| CS/CU-NU18ZKY5W | Not reported | [#4](https://github.com/dtechterminal/ha-panasonic-miraie-local/pull/4) | Flap control tested |
+| CS/CU-EU24CKY5FM | Not reported | [#4](https://github.com/dtechterminal/ha-panasonic-miraie-local/pull/4) | Flap control tested |
+
+Other MirAIe models may work. If yours does, [open an issue](https://github.com/dtechterminal/ha-panasonic-miraie-local/issues) with the model and firmware so it can be added. This does not support Panasonic Comfort Cloud accounts.
 
 ## 1. Install it with HACS
 
